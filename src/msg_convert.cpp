@@ -27,7 +27,12 @@ class msg_conv : public rclcpp::Node {
 	void timer_callback() {
 		float angle1 = recv_msg->axes[7];
 		float angle2 = recv_msg->axes[0];
-		float rise   = recv_msg->axes[4];
+		float rise   =-recv_msg->axes[4];
+
+		uint8_t B = recv_msg->buttons[1];
+		uint8_t A = recv_msg->buttons[0];
+		uint8_t X = recv_msg->buttons[2];
+		uint8_t Y = recv_msg->buttons[3];
 
 		RCLCPP_INFO(this->get_logger(), "%f %f %f", recv_msg->axes[7], recv_msg->axes[0], recv_msg->axes[4]);
 
@@ -36,8 +41,10 @@ class msg_conv : public rclcpp::Node {
 		constexpr float coef = 127.0;
 
 		msg.data[0] = (uint8_t)(angle1);
-		msg.data[1] = (uint8_t)(angle2*coef);
+		msg.data[1] = (uint8_t)(angle2*coef - B * 10 + X * 10);
 		msg.data[2] = (uint8_t)(rise*coef);
+		msg.data[3] = A;//set
+		msg.data[4] = Y;//return
 
 		can_tx->publish(msg);
 	}
@@ -46,6 +53,7 @@ public:
 	msg_conv(): Node("msg_conv") {
 		recv_msg = std::make_shared<sensor_msgs::msg::Joy>();
 		recv_msg->axes.resize(8);
+		recv_msg->buttons.resize(8);
 		joy_sub = this->create_subscription<sensor_msgs::msg::Joy>("joy", 10, std::bind(&msg_conv::sub_callback, this, _1));
 		can_tx  = this->create_publisher<std_msgs::msg::UInt8MultiArray>("can_tx", 10);
 		tim     = this->create_wall_timer(1ms, std::bind(&msg_conv::timer_callback, this));
